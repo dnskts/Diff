@@ -12,6 +12,7 @@ use Diff\Diff\Text\TextDiffer;
 use Diff\Job\JobRepository;
 use Diff\Modules\ModuleRegistry;
 use Diff\Report\ExcelReportWriter;
+use Diff\Report\HtmlReportWriter;
 use Diff\Report\TextReportWriter;
 use Diff\Support\JsonFile;
 use Diff\Support\Strings;
@@ -242,6 +243,20 @@ class CompareService
         }
 
         return array('path' => $path, 'name' => (string) $state['reportName']);
+    }
+
+    public function reportHtml(string $jobId, string $downloadUrl): string
+    {
+        $state = $this->jobs->read($jobId);
+        if ($state['status'] !== 'done' || empty($state['reportName'])) {
+            throw new AppException('Отчёт ещё не готов.');
+        }
+        $diffPath = $this->jobs->dir($jobId) . '/diff.jsonl';
+        if (!is_file($diffPath)) {
+            throw new AppException('Данные отчёта не найдены.', 404);
+        }
+
+        return (new HtmlReportWriter())->render($state, $diffPath, $downloadUrl);
     }
 
     /** @param array<string,mixed> $file */

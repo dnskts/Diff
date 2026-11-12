@@ -6,6 +6,7 @@
     var uiCap = 500;
     var fileA = null;
     var fileB = null;
+    var namedPair = false;
     var colWidths = [];
     var manualCols = {};
     var measureCanvas = null;
@@ -15,8 +16,11 @@
     var el = {
         fileA: document.getElementById('file-a'),
         fileB: document.getElementById('file-b'),
+        fileBoth: document.getElementById('file-both'),
         nameA: document.getElementById('name-a'),
         nameB: document.getElementById('name-b'),
+        titleA: document.getElementById('title-a'),
+        titleB: document.getElementById('title-b'),
         dropA: document.getElementById('drop-a'),
         dropB: document.getElementById('drop-b'),
         prepare: document.getElementById('btn-prepare'),
@@ -26,6 +30,9 @@
         download: document.getElementById('btn-download'),
         reset: document.getElementById('btn-reset'),
         sideToggle: document.getElementById('btn-side-toggle'),
+        reportModal: document.getElementById('report-modal'),
+        reportFrame: document.getElementById('report-frame'),
+        reportClose: document.getElementById('btn-report-close'),
         workspace: document.getElementById('workspace'),
         side: document.getElementById('side-panel'),
         settings: document.getElementById('settings-panel'),
@@ -48,19 +55,34 @@
         cap: document.getElementById('cap-note')
     };
 
-    bindFile(el.fileA, el.nameA, el.dropA, function (file) { fileA = file; });
-    bindFile(el.fileB, el.nameB, el.dropB, function (file) { fileB = file; });
+    bindFile(el.fileA, el.nameA, el.dropA, function (file) {
+        fileA = file;
+        if (!namedPair) setDropTitles('Было', 'Стало');
+    });
+    bindFile(el.fileB, el.nameB, el.dropB, function (file) {
+        fileB = file;
+        if (!namedPair) setDropTitles('Было', 'Стало');
+    });
+    el.fileBoth.addEventListener('change', onBothFiles);
     el.prepare.addEventListener('click', onPrepare);
     el.start.addEventListener('click', function () { onStart(false); });
     el.positional.addEventListener('click', function () { onStart(true); });
     el.cancel.addEventListener('click', onCancel);
-    el.download.addEventListener('click', downloadReport);
+    el.download.addEventListener('click', openReportPreview);
+    el.reportClose.addEventListener('click', closeReportPreview);
+    el.reportModal.addEventListener('click', function (event) {
+        if (event.target === el.reportModal) closeReportPreview();
+    });
     el.reset.addEventListener('click', resetAll);
     el.sideToggle.addEventListener('click', toggleSide);
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeReportPreview();
+    });
 
     function bindFile(input, label, zone, save) {
         input.addEventListener('change', function () {
             var file = input.files && input.files[0] ? input.files[0] : null;
+            namedPair = false;
             save(file);
             label.textContent = file ? file.name : 'Файл не выбран';
             label.title = file ? file.name : '';
@@ -75,10 +97,37 @@
             zone.classList.remove('is-over');
             var file = event.dataTransfer.files && event.dataTransfer.files[0] ? event.dataTransfer.files[0] : null;
             if (!file) return;
+            namedPair = false;
             save(file);
             label.textContent = file.name;
             label.title = file.name;
         });
+    }
+
+    function onBothFiles() {
+        var files = el.fileBoth.files;
+        if (!files || files.length < 2) {
+            showError('Выберите сразу два файла.');
+            el.fileBoth.value = '';
+            return;
+        }
+        hideError();
+        namedPair = true;
+        fileA = files[0];
+        fileB = files[1];
+        setDropTitles(fileA.name, fileB.name);
+        el.nameA.textContent = 'Выбран';
+        el.nameB.textContent = 'Выбран';
+        el.nameA.title = fileA.name;
+        el.nameB.title = fileB.name;
+        el.fileBoth.value = '';
+    }
+
+    function setDropTitles(a, b) {
+        el.titleA.textContent = a;
+        el.titleB.textContent = b;
+        el.titleA.title = a;
+        el.titleB.title = b;
     }
 
     function toggleSide() {
@@ -169,12 +218,30 @@
         var selected = {};
         var key = prep.key ? prep.key : { columns: [], reason: '' };
         (key.columns || []).forEach(function (index) { selected[index] = true; });
-        var html = '<p class="muted">' + esc(key.reason || '') + '</p><div class="keys">';
+        var html = '<p class="muted">' + esc(key.reason || '') + '</p>';
+        html += '<input type="search" class="key-search" id="key-search" placeholder="Поиск колонок…" autocomplete="off">';
+        html += '<div class="keys" id="keys-list">';
         headers.forEach(function (header, index) {
-            html += '<label class="key"><input type="checkbox" data-key="' + index + '"' + (selected[index] ? ' checked' : '') + '><span>' + esc(header) + '</span></label>';
+            html += '<label class="key" data-label="' + esc(String(header).toLowerCase()) + '"><input type="checkbox" data-key="' + index + '"' + (selected[index] ? ' checked' : '') + '><span>' + esc(header) + '</span></label>';
         });
         html += '</div>';
         el.keys.innerHTML = html;
+        var search = document.getElementById('key-search');
+        if (search) {
+            search.addEventListener('input', filterKeys);
+        }
+    }
+
+    function filterKeys() {
+        var search = document.getElementById('key-search');
+        var list = document.getElementById('keys-list');
+        if (!search || !list) return;
+        var q = String(search.value || '').toLowerCase().trim();
+        var items = list.querySelectorAll('.key');
+        for (var i = 0; i < items.length; i++) {
+            var label = items[i].getAttribute('data-label') || '';
+            items[i].classList.toggle('is-filtered-out', q !== '' && label.indexOf(q) === -1);
+        }
     }
 
     function onStart(positional) {
@@ -727,9 +794,17 @@
         el.cancel.classList.add('hidden');
     }
 
-    function downloadReport() {
+    function openReportPreview() {
         if (!jobId) return;
-        window.location = 'api.php?action=report&jobId=' + encodeURIComponent(jobId);
+        el.reportFrame.src = 'api.php?action=preview&jobId=' + encodeURIComponent(jobId);
+        el.reportModal.classList.remove('hidden');
+        el.reportModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeReportPreview() {
+        el.reportModal.classList.add('hidden');
+        el.reportModal.setAttribute('aria-hidden', 'true');
+        el.reportFrame.src = 'about:blank';
     }
 
     function resetAll() {
@@ -738,12 +813,17 @@
         kind = null;
         fileA = null;
         fileB = null;
+        namedPair = false;
         el.fileA.value = '';
         el.fileB.value = '';
+        el.fileBoth.value = '';
         el.nameA.textContent = 'Файл не выбран';
         el.nameB.textContent = 'Файл не выбран';
         el.nameA.title = '';
         el.nameB.title = '';
+        setDropTitles('Было', 'Стало');
+        closeReportPreview();
+        el.download.classList.add('hidden');
         el.workspace.classList.add('hidden');
         el.workspace.classList.remove('is-side-collapsed');
         setProgress(false, 0);

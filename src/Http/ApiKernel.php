@@ -63,6 +63,14 @@ class ApiKernel
 
             return;
         }
+        if ($action === 'preview') {
+            $downloadUrl = 'api.php?action=report&jobId=' . rawurlencode($jobId);
+            $html = $this->compare->reportHtml($jobId, $downloadUrl);
+            header('Content-Type: text/html; charset=utf-8');
+            echo $html;
+
+            return;
+        }
 
         throw new AppException('Неизвестное действие.', 404);
     }

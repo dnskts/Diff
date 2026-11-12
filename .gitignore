@@ -1,5 +1,25 @@
+# Временные файлы и черновики
+/temp/
+/temp/**
+
+# Задания сравнения (рантайм)
 /storage/jobs/*
 !/storage/jobs/.gitkeep
 /storage/error.log
+
+# Composer
 /composer.phar
-/temp/
+
+# Cursor / IDE
+.cursor/
+.cursorrules
+.cursorignore
+.cursorindexingignore
+.vscode/
+.idea/
+*.code-workspace
+
+# ОС
+.DS_Store
+Thumbs.db
+Desktop.ini
