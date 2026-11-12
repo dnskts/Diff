@@ -1,0 +1,25 @@
+{
+    "name": "local/diff",
+    "description": "Offline file comparison service (PHP 7.4+)",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "phpoffice/phpspreadsheet": "1.29.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "Diff\\": "src/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "7.4.33"
+        },
+        "policy": {
+            "advisories": {
+                "block": false
+            }
+        },
+        "sort-packages": true
+    }
+}

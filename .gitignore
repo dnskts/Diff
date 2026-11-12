@@ -1,0 +1,5 @@
+/storage/jobs/*
+!/storage/jobs/.gitkeep
+/storage/error.log
+/composer.phar
+/temp/
